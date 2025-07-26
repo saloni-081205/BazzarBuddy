@@ -3,7 +3,7 @@
 **BazaarBuddy** is a mobile-friendly web app designed to connect Indian street food vendors with nearby and reliable raw material suppliers in real-time. Built using HTML, CSS, and JavaScript with Firebase as the backend.
 
 ## 🚀 Live Demo
-[Click here to try BazaarBuddy](https://your-netlify-link.netlify.app)  
+[Click here to try BazaarBuddy](https://bazaar-buddy.netlify.app/)  
 *(Replace with your actual Netlify URL after deployment)*
 
 ---
