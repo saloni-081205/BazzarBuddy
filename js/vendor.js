@@ -147,8 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Calculate distance if using GPS
                 if (currentLocation && isUsingGPS) {
-                    console.log('isUsingGPS: ', isUsingGPS);
-                    console.log('currentLocation: ', currentLocation);
                     supplier.distance = calculateDistance(
                         currentLocation.latitude,
                         currentLocation.longitude,
