@@ -44,38 +44,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function getCurrentLocation() {
-        if (navigator.geolocation) {
-            suppliersList.innerHTML = '<div class="loading">Detecting your location...</div>';
-            
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    currentLocation = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    };
-                    isUsingGPS = true;
-                    locationText.textContent = 'Using your current location';
-                    loadSuppliers();
-                },
-                (error) => {
-                    console.error('Error getting location:', error);
-                    locationText.textContent = 'Location not available - using default area';
-                    currentLocation = { latitude: 19.0760, longitude: 72.8777 }; // Default to Mumbai coordinates
-                    isUsingGPS = false;
-                    loadSuppliers();
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000, // 10 seconds
-                    maximumAge: 0
-                }
-            );
-        } else {
-            locationText.textContent = 'Geolocation not supported - using default area';
-            currentLocation = { latitude: 19.0760, longitude: 72.8777 }; // Default to Mumbai coordinates
-            isUsingGPS = false;
-            loadSuppliers();
+        if (!navigator.geolocation) {
+            console.error("Geolocation not supported");
+            fallbackToDefaultLocation();
+            return;
         }
+
+        suppliersList.innerHTML = '<div class="loading">Detecting your location...</div>';
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                isUsingGPS = true;
+                locationText.textContent = 'Using your current location';
+                loadSuppliers();
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                fallbackToDefaultLocation();
+            },
+            {
+                enableHighAccuracy: true, // Uses GPS if available
+                timeout: 10000, // 10 seconds timeout
+                maximumAge: 0 // No cached position
+            }
+        );
+    }
+
+    function fallbackToDefaultLocation() {
+        locationText.textContent = 'Location not available - using default area';
+        currentLocation = { latitude: 19.0760, longitude: 72.8777 }; // Default to Mumbai
+        isUsingGPS = false;
+        loadSuppliers();
     }
     
     // Update these functions in your vendor.js:
@@ -144,6 +147,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Calculate distance if using GPS
                 if (currentLocation && isUsingGPS) {
+                    console.log('isUsingGPS: ', isUsingGPS);
+                    console.log('currentLocation: ', currentLocation);
                     supplier.distance = calculateDistance(
                         currentLocation.latitude,
                         currentLocation.longitude,
@@ -186,17 +191,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function createSupplierCard(supplier) {
+
         const card = document.createElement('div');
         card.className = 'supplier-card';
         
         // Get available items
-        const availableItems = Object.entries(supplier.stock)
-            .filter(([item, available]) => available)
-            .map(([item]) => item)
-            .join(', ');
+        let availableItems;
+        if(supplier?.stock) {
+            availableItems = Object.entries(supplier?.stock)
+                .filter(([item, available]) => available)
+                .map(([item]) => item)
+                .join(', ');
+        }
         
         // Calculate rating percentage
-        const totalRatings = supplier.rating.up + supplier.rating.down;
+        const totalRatings = supplier?.rating?.up + supplier?.rating?.down;
         const ratingPercent = totalRatings > 0 
             ? Math.round((supplier.rating.up / totalRatings) * 100) 
             : 0;
@@ -207,13 +216,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${supplier.status}
             </div>
             <div class="supplier-distance">
-                Distance: ${isUsingGPS ? supplier.distance.toFixed(1) + ' km' : 'N/A'}
+                Distance: ${isUsingGPS ? supplier?.distance?.toFixed(1) + ' km' : 'N/A'}
             </div>
             <div class="supplier-items">
                 <strong>Available:</strong> ${availableItems || 'None'}
             </div>
             <div class="rating-summary">
-                Rating: ${ratingPercent}% positive (${supplier.rating.up}👍 ${supplier.rating.down}👎)
+                Rating: ${ratingPercent}% positive (${supplier?.rating?.up || 0}👍 ${supplier?.rating?.down || 0}👎)
             </div>
             <a href="https://wa.me/${supplier.contactNumber}?text=Hi ${encodeURIComponent(supplier.shopName)}, I'm interested in your products" 
                class="whatsapp-btn" target="_blank">
@@ -221,10 +230,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </a>
             <div class="rating-buttons">
                 <button class="rating-btn thumbs-up" data-supplier-id="${supplier.id}">
-                    <i class="fas fa-thumbs-up"></i> 👍
+                    <i class="fas fa-thumbs-up"></i>
                 </button>
                 <button class="rating-btn thumbs-down" data-supplier-id="${supplier.id}">
-                    <i class="fas fa-thumbs-down"></i> 👎
+                    <i class="fas fa-thumbs-down"></i>
                 </button>
             </div>
         `;
@@ -242,15 +251,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateRating(supplierId, isUpvote) {
-        const field = isUpvote ? 'up' : 'down';
+        const supplierRef = db.collection('suppliers').doc(supplierId);
         
-        db.collection('suppliers').doc(supplierId).update({
-            [`rating.${field}`]: firebase.firestore.FieldValue.increment(1)
+        db.runTransaction((transaction) => {
+            return transaction.get(supplierRef).then(doc => {
+                if (!doc.exists) throw new Error('Supplier does not exist!');
+                
+                const data = doc.data();
+                // Handle missing rating fields
+                const currentRating = data.rating || { up: 0, down: 0 };
+                const newRating = {
+                    up: currentRating.up || 0,
+                    down: currentRating.down || 0
+                };
+                
+                // Apply vote
+                if (isUpvote) {
+                    newRating.up++;
+                } else {
+                    newRating.down++;
+                }
+                
+                // Prepare update object (entire rating object)
+                const updateData = { rating: newRating };
+                transaction.update(supplierRef, updateData);
+                
+                return updateData;
+            });
         }).then(() => {
             alert('Thank you for your feedback!');
-            loadSuppliers(); // Refresh the list
+            loadSuppliers();
         }).catch(error => {
-            console.error('Error updating rating:', error);
+            console.error('Transaction failure: ', error);
             alert('Failed to submit rating. Please try again.');
         });
     }
