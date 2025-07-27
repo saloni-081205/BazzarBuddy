@@ -4,13 +4,105 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BazaarBuddy - Authentication</title>
-    <link rel="stylesheet" href="css/style.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+        }
+        .auth-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .auth-switch {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .auth-switch a {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .auth-switch a:hover {
+            text-decoration: underline;
+        }
+        .hidden {
+            display: none;
+        }
+        #location-status {
+            font-size: 14px;
+            margin-top: 10px;
+            color: #666;
+        }
+        .location-btn {
+            background-color: #2196F3;
+        }
+        .location-btn:hover {
+            background-color: #0b7dda;
+        }
+        .fa-spinner {
+            margin-right: 8px;
+        }
+    </style>
+    <!-- Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-box">
-            <h1>Supplier Login</h1>
+            <h1>Supplier Portal</h1>
             
+            <!-- Login Form -->
             <div id="login-form">
                 <div class="form-group">
                     <label for="login-email">Email</label>
@@ -18,43 +110,243 @@
                 </div>
                 <div class="form-group">
                     <label for="login-password">Password</label>
-                    <input type="password" id="login-password" required>
+                    <input type="password" id="login-password" required minlength="6">
                 </div>
-                <button id="login-btn" class="btn">Login</button>
+                <button id="login-btn" class="btn">
+                    <span id="login-text">Login</span>
+                    <span id="login-spinner" class="hidden"><i class="fas fa-spinner fa-spin"></i></span>
+                </button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="show-register">Register</a></p>
             </div>
             
+            <!-- Register Form -->
             <div id="register-form" class="hidden">
                 <div class="form-group">
                     <label for="reg-shop-name">Shop Name</label>
-                    <input type="text" id="reg-shop-name" required>
+                    <input type="text" id="reg-shop-name" required minlength="2">
                 </div>
                 <div class="form-group">
                     <label for="reg-phone">WhatsApp Number</label>
-                    <input type="tel" id="reg-phone" required>
+                    <input type="tel" id="reg-phone" required pattern="[0-9]{10}">
                 </div>
                 <div class="form-group">
                     <label for="reg-email">Email</label>
                     <input type="email" id="reg-email" required>
                 </div>
                 <div class="form-group">
-                    <label for="reg-password">Password</label>
-                    <input type="password" id="reg-password" required>
+                    <label for="reg-password">Password (min 6 characters)</label>
+                    <input type="password" id="reg-password" required minlength="6">
                 </div>
                 <div class="form-group">
-                    <button id="get-location" class="btn location-btn">Capture My Location</button>
-                    <p id="location-status">Location not captured yet</p>
+                    <button type="button" id="get-location" class="btn location-btn">
+                        <i class="fas fa-location-arrow"></i> Capture My Location
+                    </button>
+                    <p id="location-status"><i class="fas fa-info-circle"></i> Location not captured yet</p>
                 </div>
-                <button id="register-btn" class="btn">Register</button>
+                <button type="button" id="register-btn" class="btn">
+                    <span id="register-text">Register</span>
+                    <span id="register-spinner" class="hidden"><i class="fas fa-spinner fa-spin"></i></span>
+                </button>
                 <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
             </div>
         </div>
     </div>
-    
+
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
-    <script src="js/firebase.js"></script>
-    <script src="js/auth.js"></script>
+    
+    <!-- App Scripts -->
+    <script>
+        // Initialize Firebase (replace with your config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBnzS4g6twOXAao5XvTzgAlENZYKiVfKU0",
+            authDomain: "bazaarbuddy-628f1.firebaseapp.com",
+            projectId: "bazaarbuddy-628f1",
+            storageBucket: "bazaarbuddy-628f1.firebasestorage.app",
+            messagingSenderId: "442023625710",
+            appId: "1:442023625710:web:6458f09e3e15b4a9d5c4ff"
+};
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const showRegister = document.getElementById('show-register');
+            const showLogin = document.getElementById('show-login');
+            
+            // Form toggle functionality
+            showRegister.addEventListener('click', function(e) {
+                e.preventDefault();
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+            });
+            
+            showLogin.addEventListener('click', function(e) {
+                e.preventDefault();
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+            });
+            
+            // Location handler
+            document.getElementById('get-location').addEventListener('click', function() {
+                const locationStatus = document.getElementById('location-status');
+                
+                if (!navigator.geolocation) {
+                    locationStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> Geolocation not supported';
+                    return;
+                }
+
+                this.disabled = true;
+                locationStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting location...';
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        window.userLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        };
+                        locationStatus.innerHTML = `
+                            <i class="fas fa-check-circle"></i> 
+                            Location captured: ${window.userLocation.latitude.toFixed(4)}, ${window.userLocation.longitude.toFixed(4)}
+                        `;
+                        this.disabled = false;
+                    },
+                    (error) => {
+                        console.error('Location error:', error);
+                        locationStatus.innerHTML = `
+                            <i class="fas fa-exclamation-circle"></i> 
+                            Location error: ${error.message}
+                        `;
+                        this.disabled = false;
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            });
+            
+            // Registration function
+            document.getElementById('register-btn').addEventListener('click', async function(e) {
+                e.preventDefault();
+                const registerBtn = this;
+        const shopName = document.getElementById('reg-shop-name').value.trim();
+        const phone = document.getElementById('reg-phone').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value.trim();
+        
+        // Validation
+        if (!shopName || !phone || !email || !password) {
+            showError('Please fill in all fields');
+            return;
+        }
+
+        if (password.length < 6) {
+            showError('Password must be at least 6 characters');
+            return;
+        }
+
+        if (!window.userLocation) {
+            showError('Please capture your location first');
+            return;
+        }
+
+        try {
+            // Show loading state
+            toggleLoading(registerBtn, true);
+            
+            // 1. Create user account
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+            
+            // 2. Save supplier data
+            await db.collection('suppliers').doc(user.uid).set({
+                shopName,
+                contactNumber: phone,
+                email,
+                location: window.userLocation,
+                status: 'CLOSED',
+                stock: {}, // Initialize empty stock
+                rating: { up: 0, down: 0 },
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // 3. Redirect to supplier page
+            window.location.href = 'supplier.html';
+            
+        } catch (error) {
+            console.error('Registration error:', error);
+            showError(getErrorMessage(error.code));
+        } finally {
+            toggleLoading(registerBtn, false);
+        }
+    });
+
+    // Helper functions
+    function toggleLoading(button, isLoading) {
+        const textSpan = button.querySelector('span:first-child');
+        const spinnerSpan = button.querySelector('span:last-child');
+        
+        if (isLoading) {
+            textSpan.classList.add('hidden');
+            spinnerSpan.classList.remove('hidden');
+            button.disabled = true;
+        } else {
+            textSpan.classList.remove('hidden');
+            spinnerSpan.classList.add('hidden');
+            button.disabled = false;
+        }
+    }
+
+    function showError(message) {
+        alert(message); // Replace with prettier error display if needed
+    }
+
+    function getErrorMessage(code) {
+        const messages = {
+            'auth/email-already-in-use': 'This email is already registered',
+            'auth/invalid-email': 'Please enter a valid email address',
+            'auth/weak-password': 'Password must be at least 6 characters',
+            'auth/operation-not-allowed': 'Registration is currently disabled',
+            'permission-denied': 'Database error - please contact support',
+            'default': 'Registration failed. Please try again.'
+        };
+        return messages[code] || messages['default'];
+    }
+});
+
+        document.getElementById('login-btn').addEventListener('click', async function() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+    
+    if (!email || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    try {
+        // Show loading state
+        document.getElementById('login-text').classList.add('hidden');
+        document.getElementById('login-spinner').classList.remove('hidden');
+        this.disabled = true;
+        
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = 'supplier.html'; // Ensure this path is correct
+    } catch (error) {
+        console.error('Login error:', error);
+        alert(getErrorMessage(error.code));
+    } finally {
+        document.getElementById('login-text').classList.remove('hidden');
+        document.getElementById('login-spinner').classList.add('hidden');
+        this.disabled = false;
+    }
+});
+    </script>
 </body>
 </html>
